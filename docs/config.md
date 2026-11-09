@@ -17,6 +17,7 @@ config file at runtime.
     - [`Addresses.AppendAnnounce`](#addressesappendannounce)
     - [`Addresses.NoAnnounce`](#addressesnoannounce)
   - [`API`](#api)
+    - [`API.AccessLog`](#apiaccesslog)
     - [`API.HTTPHeaders`](#apihttpheaders)
     - [`API.Authorizations`](#apiauthorizations)
       - [`API.Authorizations: AuthSecret`](#apiauthorizations-authsecret)
@@ -61,6 +62,7 @@ config file at runtime.
   - [`Experimental`](#experimental)
     - [`Experimental.Libp2pStreamMounting`](#experimentallibp2pstreammounting)
   - [`Gateway`](#gateway)
+    - [`Gateway.AccessLog`](#gatewayaccesslog)
     - [`Gateway.NoFetch`](#gatewaynofetch)
     - [`Gateway.NoDNSLink`](#gatewaynodnslink)
     - [`Gateway.DeserializedResponses`](#gatewaydeserializedresponses)
@@ -433,6 +435,30 @@ Type: `array[string]` ([multiaddrs][multiaddr])
 ## `API`
 
 Contains information used by the [Kubo RPC API](https://docs.ipfs.tech/reference/kubo/rpc/).
+
+### `API.AccessLog`
+
+Optional local JSON HTTP access log for the RPC API daemon listeners.
+Set `Enabled` to `true` and restart to write request-start and completion events
+with timing, sanitized parameters, client attribution and HTTP byte counts.
+Logging is disabled by default; it does not change telemetry or subsystem logs.
+
+```json
+{"Enabled": true, "Path": "api-access.jsonl", "MaxSizeMB": 50, "MaxBackups": 7, "MaxAgeDays": 7, "TrustedProxies": []}
+```
+
+`Path` is absolute or relative to `$IPFS_PATH`. New files are private (`0600`),
+rotate at `MaxSizeMB` MiB, and keep at most `MaxBackups` compressed backups no
+older than `MaxAgeDays` days. Zero limits select these defaults; negative values
+are rejected. Only explicit `TrustedProxies` CIDRs permit client attribution
+from forwarding headers. API and gateway logs must use different files.
+
+See [local HTTP access logs](http-access-log.md) for the event schema, redaction,
+retention details and the distinction between HTTP and swarm traffic.
+
+Default: `null` (disabled)
+
+Type: `object`
 
 ### `API.HTTPHeaders`
 
@@ -1292,6 +1318,30 @@ Options for the HTTP gateway.
 > To run a public gateway, configure your domain names in [`Gateway.PublicGateways`](#gatewaypublicgateways).
 > For production deployment considerations (reverse proxy, timeouts, rate limiting, CDN),
 > see [Running in Production](gateway.md#running-in-production).
+
+### `Gateway.AccessLog`
+
+Optional local JSON HTTP access log for the gateway daemon listeners.
+Set `Enabled` to `true` and restart to write request-start and completion events
+with timing, sanitized parameters, client attribution and HTTP byte counts.
+Logging is disabled by default; it does not change telemetry or subsystem logs.
+
+```json
+{"Enabled": true, "Path": "gateway-access.jsonl", "MaxSizeMB": 50, "MaxBackups": 7, "MaxAgeDays": 7, "TrustedProxies": []}
+```
+
+`Path` is absolute or relative to `$IPFS_PATH`. New files are private (`0600`),
+rotate at `MaxSizeMB` MiB, and keep at most `MaxBackups` compressed backups no
+older than `MaxAgeDays` days. Zero limits select these defaults; negative values
+are rejected. Only explicit `TrustedProxies` CIDRs permit client attribution
+from forwarding headers. API and gateway logs must use different files.
+
+See [local HTTP access logs](http-access-log.md) for the event schema, redaction,
+retention details and the distinction between HTTP and swarm traffic.
+
+Default: `null` (disabled)
+
+Type: `object`
 
 ### `Gateway.NoFetch`
 

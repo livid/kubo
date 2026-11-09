@@ -10,6 +10,7 @@ import (
 	"net/http"
 	_ "net/http/pprof"
 	"os"
+	"path/filepath"
 	"regexp"
 	"runtime"
 	"sort"
@@ -33,6 +34,7 @@ import (
 	libp2p "github.com/ipfs/kubo/core/node/libp2p"
 	"github.com/ipfs/kubo/core/shutdown"
 	nodeMount "github.com/ipfs/kubo/fuse/node"
+	"github.com/ipfs/kubo/internal/accesslog"
 	fsrepo "github.com/ipfs/kubo/repo/fsrepo"
 	"github.com/ipfs/kubo/repo/fsrepo/migrations"
 	p2pcrypto "github.com/libp2p/go-libp2p/core/crypto"
@@ -904,6 +906,17 @@ func serveHTTPApi(req *cmds.Request, cctx *oldcmds.Context) (<-chan error, error
 		return nil, fmt.Errorf("serveHTTPApi: ConstructNode() failed: %s", err)
 	}
 
+	requestLog, err := openAccessLog(cfg, node.Repo.Path(), "api")
+	if err != nil {
+		return nil, fmt.Errorf("serveHTTPApi: %w", err)
+	}
+	started := false
+	defer func() {
+		if !started {
+			closeAccessLog(requestLog)
+		}
+	}()
+
 	// Buffer channel to prevent deadlock when multiple servers write errors simultaneously
 	errc := make(chan error, len(listeners))
 	var wg sync.WaitGroup
@@ -917,7 +930,10 @@ func serveHTTPApi(req *cmds.Request, cctx *oldcmds.Context) (<-chan error, error
 			readyChannels[i] = make(chan struct{})
 			ready := readyChannels[i]
 			wg.Go(func() {
-				errc <- corehttp.ServeWithReady(node, manet.NetListener(lis), ready, opts...)
+				middleware := func(next http.Handler) http.Handler {
+					return requestLog.Wrap("api", lis.Multiaddr().String(), next)
+				}
+				errc <- corehttp.ServeWithReadyAndMiddleware(node, manet.NetListener(lis), ready, middleware, opts...)
 			})
 		}
 
@@ -936,12 +952,48 @@ func serveHTTPApi(req *cmds.Request, cctx *oldcmds.Context) (<-chan error, error
 		}
 	}
 
+	started = true
 	go func() {
 		wg.Wait()
+		closeAccessLog(requestLog)
 		close(errc)
 	}()
 
 	return errc, nil
+}
+
+// Each service owns one writer shared by all of its listeners. Separate files
+// avoid competing rotation between the API and gateway services.
+func openAccessLog(cfg *config.Config, root, service string) (*accesslog.Logger, error) {
+	api, gateway := cfg.API.AccessLog, cfg.Gateway.AccessLog
+	if api != nil && api.Enabled && gateway != nil && gateway.Enabled {
+		path := func(c *config.AccessLog, fallback string) string {
+			name := c.Path
+			if name == "" {
+				name = fallback
+			}
+			if !filepath.IsAbs(name) {
+				name = filepath.Join(root, name)
+			}
+			return filepath.Clean(name)
+		}
+		if path(api, "api-access.jsonl") == path(gateway, "gateway-access.jsonl") {
+			return nil, fmt.Errorf("API.AccessLog.Path and Gateway.AccessLog.Path must use separate files")
+		}
+	}
+	c := api
+	if service == "gateway" {
+		c = gateway
+	}
+	return accesslog.New(c, root, service+"-access.jsonl", func(err error) {
+		log.Warnw("HTTP access log write failed", "service", service, "error", err)
+	})
+}
+
+func closeAccessLog(l *accesslog.Logger) {
+	if err := l.Close(); err != nil {
+		log.Warnw("HTTP access log close failed", "error", err)
+	}
 }
 
 func rewriteMaddrToUseLocalhostIfItsAny(maddr ma.Multiaddr) ma.Multiaddr {
@@ -1134,6 +1186,17 @@ func serveHTTPGateway(req *cmds.Request, cctx *oldcmds.Context) (<-chan error, e
 		return nil, fmt.Errorf("serveHTTPGateway: ConstructNode() failed: %s", err)
 	}
 
+	requestLog, err := openAccessLog(cfg, node.Repo.Path(), "gateway")
+	if err != nil {
+		return nil, fmt.Errorf("serveHTTPGateway: %w", err)
+	}
+	started := false
+	defer func() {
+		if !started {
+			closeAccessLog(requestLog)
+		}
+	}()
+
 	// Buffer channel to prevent deadlock when multiple servers write errors simultaneously
 	errc := make(chan error, len(listeners))
 	var wg sync.WaitGroup
@@ -1147,7 +1210,10 @@ func serveHTTPGateway(req *cmds.Request, cctx *oldcmds.Context) (<-chan error, e
 			readyChannels[i] = make(chan struct{})
 			ready := readyChannels[i]
 			wg.Go(func() {
-				errc <- corehttp.ServeWithReady(node, manet.NetListener(lis), ready, opts...)
+				middleware := func(next http.Handler) http.Handler {
+					return requestLog.Wrap("gateway", lis.Multiaddr().String(), next)
+				}
+				errc <- corehttp.ServeWithReadyAndMiddleware(node, manet.NetListener(lis), ready, middleware, opts...)
 			})
 		}
 
@@ -1170,8 +1236,10 @@ func serveHTTPGateway(req *cmds.Request, cctx *oldcmds.Context) (<-chan error, e
 		}
 	}
 
+	started = true
 	go func() {
 		wg.Wait()
+		closeAccessLog(requestLog)
 		close(errc)
 	}()
 

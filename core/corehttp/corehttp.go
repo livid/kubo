@@ -95,12 +95,22 @@ func Serve(node *core.IpfsNode, lis net.Listener, options ...ServeOption) error 
 //
 // Passing nil for ready is equivalent to calling Serve().
 func ServeWithReady(node *core.IpfsNode, lis net.Listener, ready chan<- struct{}, options ...ServeOption) error {
+	return ServeWithReadyAndMiddleware(node, lis, ready, nil, options...)
+}
+
+// ServeWithReadyAndMiddleware applies middleware outside the assembled handler,
+// including CONNECT handling, without changing existing ServeOption ordering.
+func ServeWithReadyAndMiddleware(node *core.IpfsNode, lis net.Listener, ready chan<- struct{}, middleware func(http.Handler) http.Handler, options ...ServeOption) error {
 	// make sure we close this no matter what.
 	defer lis.Close()
 
 	handler, err := MakeHandler(node, lis, options...)
 	if err != nil {
 		return err
+	}
+
+	if middleware != nil {
+		handler = middleware(handler)
 	}
 
 	addr, err := manet.FromNetAddr(lis.Addr())

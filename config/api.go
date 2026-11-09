@@ -22,6 +22,9 @@ type RPCAuthScope struct {
 }
 
 type API struct {
+	// AccessLog optionally records local JSON HTTP request events.
+	AccessLog *AccessLog `json:",omitempty"`
+
 	// HTTPHeaders are the HTTP headers to return with the API.
 	HTTPHeaders map[string][]string
 
