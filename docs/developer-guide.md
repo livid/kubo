@@ -184,6 +184,14 @@ Run the linter using the Makefile target (not `golangci-lint` directly):
 make -O test_go_lint
 ```
 
+The target builds the version of golangci-lint v2 pinned in
+`test/dependencies/go.mod`; CI uses the same target. Keep that pin, the v2 tool
+import in `test/dependencies/dependencies.go`, and the build rule in
+`test/bin/Rules.mk` aligned when upgrading the linter. The v2 configuration in
+`.golangci.yml` retains the existing gosimple (`S`), staticcheck (`SA`) and
+stylecheck (`ST`) check families, including the `ST1003` exception. Optional
+quick-fix (`QF`) refactoring suggestions are not enabled.
+
 ## Common Development Tasks
 
 ### Modifying CLI Commands

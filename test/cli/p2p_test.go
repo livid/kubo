@@ -212,8 +212,8 @@ func TestP2PForeground(t *testing.T) {
 		}()
 
 		select {
-		case <-done:
-			// Good - command exited
+		case err := <-done:
+			require.NoError(t, err, "foreground command should exit cleanly after p2p close")
 		case <-time.After(5 * time.Second):
 			_ = res.Cmd.Process.Kill()
 			t.Fatal("foreground command did not exit after listener was closed via ipfs p2p close")
@@ -260,8 +260,8 @@ func TestP2PForeground(t *testing.T) {
 		}()
 
 		select {
-		case <-done:
-			// Good - command exited
+		case err := <-done:
+			require.NoError(t, err, "foreground command should exit cleanly after p2p close")
 		case <-time.After(5 * time.Second):
 			_ = res.Cmd.Process.Kill()
 			t.Fatal("foreground command did not exit after forwarder was closed via ipfs p2p close")
@@ -406,10 +406,12 @@ func TestP2PForeground(t *testing.T) {
 		// Stop the daemon
 		node.StopDaemon()
 
-		// Wait for foreground command to exit
-		done := make(chan error, 1)
+		// Daemon shutdown may close the RPC stream with an error. This
+		// test checks that the foreground command exits, not its exit status.
+		done := make(chan struct{})
 		go func() {
-			done <- res.Cmd.Wait()
+			_ = res.Cmd.Wait()
+			close(done)
 		}()
 
 		select {

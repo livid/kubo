@@ -1,11 +1,33 @@
+version: "2"
 linters:
   enable:
-    - stylecheck
-
-linters-settings:
-  stylecheck:
-    checks:
-    - all
-    - '-ST1003'
-    dot-import-whitelist:
-      - github.com/ipfs/kubo/test/cli/testutils
+    - staticcheck
+  settings:
+    staticcheck:
+      checks:
+        # Preserve the v1 gosimple, staticcheck and stylecheck families.
+        # QF refactoring suggestions were not enabled by the separate v1 linters.
+        - S*
+        - SA*
+        - ST*
+        - -ST1003
+      dot-import-whitelist:
+        - github.com/ipfs/kubo/test/cli/testutils
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
+formatters:
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
