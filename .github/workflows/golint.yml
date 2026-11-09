@@ -8,6 +8,10 @@ on:
   push:
     branches:
       - 'master'
+      - 'main'
+
+permissions:
+  contents: read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event_name == 'push' && github.sha || github.ref }}
@@ -15,8 +19,12 @@ concurrency:
 
 jobs:
   go-lint:
-    if: github.repository == 'ipfs/kubo' || github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-latest
+    # Public pull requests must never execute on the fork's persistent runner.
+    if: >-
+      github.repository == 'ipfs/kubo' ||
+      (github.repository == 'livid/kubo' && github.ref == 'refs/heads/main' &&
+       (github.event_name == 'push' || github.event_name == 'workflow_dispatch'))
+    runs-on: ${{ fromJSON(github.repository == 'livid/kubo' && '["self-hosted","linux","x64","kubo-ci"]' || '["ubuntu-latest"]') }}
     timeout-minutes: 10
     env:
       TEST_DOCKER: 0
@@ -29,7 +37,14 @@ jobs:
         shell: bash
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - uses: actions/setup-go@v7
         with:
           go-version-file: 'go.mod'
+          # The dedicated VM keeps its local Go caches between jobs.
+          cache: ${{ github.repository != 'livid/kubo' }}
+          cache-dependency-path: |
+            go.sum
+            test/dependencies/go.sum
       - run: make -O test_go_lint

@@ -192,6 +192,13 @@ import in `test/dependencies/dependencies.go`, and the build rule in
 stylecheck (`ST`) check families, including the `ST1003` exception. Optional
 quick-fix (`QF`) refactoring suggestions are not enabled.
 
+In `livid/kubo`, lint runs for pushes to `main` and manual runs of `main` use
+the dedicated `kubo-ci` self-hosted Linux x64 runner. Public pull requests and
+other refs cannot run this job on that persistent runner. The job has read-only
+repository permissions and checkout does not retain Git credentials. Go's
+module/build caches remain local on the runner; Actions cache uploads are
+disabled there. The upstream repository retains its GitHub-hosted runner.
+
 ## Common Development Tasks
 
 ### Modifying CLI Commands
