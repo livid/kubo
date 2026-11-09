@@ -344,3 +344,5 @@ require (
 	mvdan.cc/gofumpt v0.7.0 // indirect
 	mvdan.cc/unparam v0.0.0-20240528143540-8a5130ca722f // indirect
 )
+
+replace github.com/ipfs/go-ds-flatfs => github.com/livid/go-ds-flatfs v0.6.2-0.20261109131402-70802b0da410

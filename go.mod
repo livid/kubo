@@ -277,3 +277,5 @@ exclude (
 	github.com/ipfs/go-ipfs-cmds v2.0.1+incompatible
 	github.com/libp2p/go-libp2p v6.0.23+incompatible
 )
+
+replace github.com/ipfs/go-ds-flatfs => github.com/livid/go-ds-flatfs v0.6.2-0.20261109131402-70802b0da410

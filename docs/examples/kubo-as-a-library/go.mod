@@ -225,3 +225,5 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	lukechampine.com/blake3 v1.4.1 // indirect
 )
+
+replace github.com/ipfs/go-ds-flatfs => github.com/livid/go-ds-flatfs v0.6.2-0.20261109131402-70802b0da410
